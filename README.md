@@ -1,5 +1,60 @@
 # Raspberry-PI-Zero-2W-and-Pimoroni-Clipper-LTE-hat
 
+Open an SSH connection to the PI Zero with Putty.
+
+## Open serial interface in PI Zero
+
+```sudo raspi-config```
+
+Move to serial port config with arrows and enter key.
+
+ONLY enable serial for hardware - NOT for shell commands.
+
+```sudo apt update```
+
+```sudo apt install minicom```
+
+```sudo usermod -a -G dialout toor```
+
+## Check where the Clipper hat is connected
+
+```ls -l /dev/tty*```
+
+On the PI Zero 2W it connected on /dev/ttyS0 - but it can often be on either /dev/ttyAMA0 or /dev/ttyS0.
+
+## Run minicom just to check you can interact with the Clipper hat
+
+```minicom -b 115200 -D /dev/ttyS0```
+
+If minicom console doesnt open, try adding ```sudo```
+
+## In minicom console
+
+type ```ctrl+a e``` (will double echo output to minicom so you can see what you type)
+
+```type at + [enter]```
+
+Check that you get an 'OK' back.
+
+If you get an OK back, check if SIM card needs a pin code:
+
+```AT+CPIN?```
+   
+   Possible responses:
+
+   
+   CPIN: READY - SIM is unlocked, no PIN needed
+   
+   CPIN: SIM PIN - SIM needs PIN
+   
+   CPIN: SIM PUK - SIM is locked, needs PUK code
+   
+
+If you need to enter a PIN:
+
+```AT+CPIN="0000"``` (pin for KPN SIM card is 0000)
+
+
 ```
 # example configuration for a dialup connection authenticated with PAP or CHAP
 #
