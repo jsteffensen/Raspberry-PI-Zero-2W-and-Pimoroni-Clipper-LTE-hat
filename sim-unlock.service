@@ -1,0 +1,17 @@
+[Unit]
+Description=SIM Card Auto-Unlock Service for Clipper LTE HAT
+After=multi-user.target
+Wants=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/toor/unlock-sim.sh
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+# Wait for serial port to be ready
+ExecStartPre=/bin/sleep 5
+
+[Install]
+WantedBy=multi-user.target
