@@ -32,7 +32,7 @@ If minicom console doesnt open, try adding ```sudo```
 
 type ```ctrl+a e``` (will double echo output to minicom so you can see what you type)
 
-```type at + [enter]```
+type ```at```+```[enter]```
 
 Check that you get an 'OK' back.
 
