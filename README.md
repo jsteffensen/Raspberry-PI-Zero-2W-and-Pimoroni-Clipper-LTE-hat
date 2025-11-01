@@ -38,7 +38,7 @@ Check that you get an 'OK' back.
 
 ## Check if SIM card needs a pin code:
 
-In minicom console run ```AT+CPIN?```
+In minicom console run ```AT+CPIN?```+```[enter]```
    
    Possible responses:
 
