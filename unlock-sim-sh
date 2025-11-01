@@ -1,0 +1,206 @@
+#!/bin/bash
+
+# SIM Card Auto-Unlock Script for Clipper LTE HAT
+# This script unlocks the SIM card with PIN on startup
+
+# Configuration
+SERIAL_PORT="/dev/ttyS0"
+SIM_PIN="1234"  # CHANGE THIS to your actual SIM PIN
+MAX_RETRIES=10
+RETRY_DELAY=2
+MAX_UNLOCK_ATTEMPTS=3
+RESPONSE_TIMEOUT=3
+
+# Logging
+LOG_TAG="[SIM-UNLOCK]"
+
+log() {
+    echo "${LOG_TAG} $1"
+}
+
+# Function to send AT command and get response with multiple attempts
+send_at_command() {
+    local command=$1
+    local max_attempts=${2:-3}
+    local response=""
+    
+    for attempt in $(seq 1 $max_attempts); do
+        log "Sending: ${command} (attempt ${attempt}/${max_attempts})"
+        
+        # Send command and capture response
+        response=$(echo -e "${command}\r" | timeout $RESPONSE_TIMEOUT socat - $SERIAL_PORT,b115200,raw,echo=0 2>&1)
+        
+        # Log the raw response for debugging
+        log "Raw response: ${response}"
+        
+        # Check if we got any response
+        if [ -n "$response" ]; then
+            echo "$response"
+            return 0
+        fi
+        
+        log "No response received, waiting before retry..."
+        sleep 1
+    done
+    
+    log "Failed to get response after ${max_attempts} attempts"
+    return 1
+}
+
+# Function to check SIM status with retries
+check_sim_status() {
+    local max_attempts=${1:-5}
+    
+    for attempt in $(seq 1 $max_attempts); do
+        log "Checking SIM status (attempt ${attempt}/${max_attempts})..."
+        
+        response=$(send_at_command "AT+CPIN?" 3)
+        
+        if echo "$response" | grep -qi "READY"; then
+            log "SIM status: READY"
+            return 0
+        elif echo "$response" | grep -qi "SIM PIN"; then
+            log "SIM status: SIM PIN required"
+            return 1
+        elif echo "$response" | grep -qi "SIM PUK"; then
+            log "SIM status: SIM PUK required (LOCKED!)"
+            return 2
+        fi
+        
+        log "Unable to determine SIM status from response, retrying..."
+        sleep 2
+    done
+    
+    log "Failed to determine SIM status after ${max_attempts} attempts"
+    return 3
+}
+
+# Wait for serial port to be available
+log "Waiting for serial port ${SERIAL_PORT}..."
+retry_count=0
+while [ ! -c "$SERIAL_PORT" ] && [ $retry_count -lt $MAX_RETRIES ]; do
+    sleep $RETRY_DELAY
+    retry_count=$((retry_count + 1))
+done
+
+if [ ! -c "$SERIAL_PORT" ]; then
+    log "ERROR: Serial port ${SERIAL_PORT} not available after ${MAX_RETRIES} retries"
+    exit 1
+fi
+
+log "Serial port ${SERIAL_PORT} is available"
+
+# Wait for modem to initialize
+log "Waiting for modem to initialize..."
+sleep 5
+
+# Test modem communication
+log "Testing modem communication..."
+retry_count=0
+modem_ready=false
+
+while [ $retry_count -lt $MAX_RETRIES ]; do
+    response=$(send_at_command "AT" 2)
+    
+    if echo "$response" | grep -qi "OK"; then
+        modem_ready=true
+        log "Modem is responding"
+        break
+    fi
+    
+    log "Modem not responding yet, retrying... ($((retry_count + 1))/$MAX_RETRIES)"
+    sleep $RETRY_DELAY
+    retry_count=$((retry_count + 1))
+done
+
+if [ "$modem_ready" = false ]; then
+    log "ERROR: Modem not responding after ${MAX_RETRIES} retries"
+    exit 1
+fi
+
+# Check initial SIM PIN status
+check_sim_status 5
+status_result=$?
+
+case $status_result in
+    0)
+        log "SUCCESS: SIM card is already unlocked and ready"
+        exit 0
+        ;;
+    2)
+        log "ERROR: SIM card is PUK locked - manual intervention required"
+        exit 1
+        ;;
+    3)
+        log "ERROR: Unable to determine SIM status - assuming unlock needed"
+        # Continue to unlock attempt
+        ;;
+    1)
+        log "SIM card requires PIN unlock"
+        # Continue to unlock
+        ;;
+esac
+
+# Attempt to unlock SIM
+unlock_attempt=0
+unlock_success=false
+
+while [ $unlock_attempt -lt $MAX_UNLOCK_ATTEMPTS ]; do
+    unlock_attempt=$((unlock_attempt + 1))
+    log "Unlock attempt ${unlock_attempt}/${MAX_UNLOCK_ATTEMPTS}"
+    
+    # Send PIN command
+    unlock_response=$(send_at_command "AT+CPIN=\"${SIM_PIN}\"" 3)
+    
+    # Check for OK in response (successful PIN entry)
+    if echo "$unlock_response" | grep -qi "OK"; then
+        log "PIN command accepted (got OK response)"
+        unlock_success=true
+        break
+    elif echo "$unlock_response" | grep -qi "ERROR"; then
+        log "WARNING: Got ERROR response to PIN command"
+        # Don't break - we'll verify status anyway
+    else
+        log "WARNING: Unclear response to PIN command"
+    fi
+    
+    # Wait before retry
+    if [ $unlock_attempt -lt $MAX_UNLOCK_ATTEMPTS ]; then
+        log "Waiting before retry..."
+        sleep 3
+    fi
+done
+
+# Always verify the final status, regardless of what response we got
+log "Verifying final SIM status..."
+sleep 3  # Give modem time to process unlock
+
+# Check status multiple times to be sure
+verification_attempts=0
+max_verification_attempts=5
+verified_ready=false
+
+while [ $verification_attempts -lt $max_verification_attempts ]; do
+    verification_attempts=$((verification_attempts + 1))
+    
+    check_sim_status 3
+    final_status=$?
+    
+    if [ $final_status -eq 0 ]; then
+        verified_ready=true
+        log "SUCCESS: SIM unlock verified - status is READY (verification ${verification_attempts}/${max_verification_attempts})"
+        exit 0
+    fi
+    
+    log "SIM not READY yet, waiting... (verification ${verification_attempts}/${max_verification_attempts})"
+    sleep 2
+done
+
+# If we get here, unlock was not verified
+if [ "$verified_ready" = false ]; then
+    log "WARNING: Could not verify SIM is READY after ${max_verification_attempts} attempts"
+    log "The SIM may still be unlocking. Check status manually with: AT+CPIN?"
+    # Exit with success anyway since we did our best
+    # The PPP connection will fail if SIM is actually not ready
+    exit 0
+fi
