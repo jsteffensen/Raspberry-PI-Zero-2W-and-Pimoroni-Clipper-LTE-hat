@@ -1,7 +1,6 @@
 # Raspberry-PI-Zero-2W-and-Pimoroni-Clipper-LTE-hat
 
 ```
-  GNU nano 8.4                                                                 /etc/ppp/peers/clipper
 # example configuration for a dialup connection authenticated with PAP or CHAP
 #
 # This is the default configuration used by pon(1) and poff(1).
