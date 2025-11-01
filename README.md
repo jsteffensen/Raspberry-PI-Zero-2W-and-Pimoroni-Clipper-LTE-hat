@@ -30,9 +30,9 @@ If minicom console doesnt open, try adding ```sudo```
 
 ## In minicom console check serial interface
 
-type ```ctrl+a e``` (will double echo output to minicom so you can see what you type)
+type ```ctrl+a``` then ```e``` (will double echo output to minicom so you can see what you type)
 
-type ```at```+```[enter]```
+type ```at``` then ```[enter]```
 
 Check that you get an 'OK' back.
 
