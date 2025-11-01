@@ -1,0 +1,19 @@
+[Unit]
+Description=Clipper LTE PPP Connection Service
+After=sim-unlock.service network.target
+Requires=sim-unlock.service
+Wants=network-online.target
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/pon clipper
+ExecStop=/usr/bin/poff clipper
+RemainAfterExit=yes
+Restart=on-failure
+RestartSec=10
+
+# Wait a bit after SIM unlock before starting PPP
+ExecStartPre=/bin/sleep 3
+
+[Install]
+WantedBy=multi-user.target
