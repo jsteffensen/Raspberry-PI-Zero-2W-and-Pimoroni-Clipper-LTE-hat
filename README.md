@@ -28,7 +28,7 @@ On the PI Zero 2W it connected on /dev/ttyS0 - but it can often be on either /de
 
 If minicom console doesnt open, try adding ```sudo```
 
-## In minicom console
+## In minicom console check serial interface
 
 type ```ctrl+a e``` (will double echo output to minicom so you can see what you type)
 
@@ -36,9 +36,9 @@ type ```ctrl+a e``` (will double echo output to minicom so you can see what you 
 
 Check that you get an 'OK' back.
 
-If you get an OK back, check if SIM card needs a pin code:
+## Check if SIM card needs a pin code:
 
-```AT+CPIN?```
+In minicom console run ```AT+CPIN?```
    
    Possible responses:
 
@@ -54,6 +54,13 @@ If you need to enter a PIN:
 
 ```AT+CPIN="0000"``` (pin for KPN SIM card is 0000)
 
+Now serial is running and SIM card is unlocked with pin.
+
+Close minicom console with ```ctrl+a x```
+
+## Setup PPP connection
+
+Copy a Clipper config to a new file: ```sudo cp /etc/ppp/peers/provider /etc/ppp/peers/clipper```
 
 ```
 # example configuration for a dialup connection authenticated with PAP or CHAP
@@ -66,15 +73,15 @@ If you need to enter a PIN:
 # There should be a matching entry with the password in /etc/ppp/pap-secrets
 # and/or /etc/ppp/chap-secrets.
 
-# user "myusername@realm"
+# user "myusername@realm" <------------------------------------------------------------------ comment out
 
 # MUST CHANGE: replace ******** with the phone number of your provider.
 # The /etc/chatscripts/pap chat script may be modified to change the
 # modem initialization string.
-connect "/usr/sbin/chat -v -f /etc/chatscripts/gprs -T internet"
+connect "/usr/sbin/chat -v -f /etc/chatscripts/gprs -T internet" <--------------------------- set gprs and internet
 
 # Serial device to which the modem is connected.
-/dev/ttyS0
+/dev/ttyS0 <----------------------------------------------------------------------------------set the actual interface
 
 # Speed of the serial line.
 115200
@@ -95,9 +102,17 @@ persist
 noauth
 
 # disable hardware flow control (RTS, and CTS)
-nocrtscts
+nocrtscts <--------------------------------------------------------------------------------add this
 
 # disable modem control lines (CD, and DTR)
-local
+local <------------------------------------------------------------------------------------add this
 
 ```
+
+## Launch Clipper
+
+```sudo pon clipper```
+
+Check PPP connection ```ifconfig```
+
+Check connection with PPP ```ping -I ppp0 1.1.1.1```
