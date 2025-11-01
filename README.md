@@ -116,3 +116,17 @@ local <-------------------------------------------------------------------------
 Check PPP connection ```ifconfig```
 
 Check connection with PPP ```ping -I ppp0 1.1.1.1```
+
+## Setup services
+
+```sudo nano /etc/systemd/system/sim-unlock.service```
+
+```sudo nano /etc/systemd/system/clipper-ppp.service```
+
+```sudo systemctl daemon-reload```
+
+```sudo systemctl enable sim-unlock.service```
+
+```sudo systemctl enable clipper-ppp.service```
+
+```sudo journalctl -u sim-unlock.service -n 50```
